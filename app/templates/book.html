@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center;">
+        KJV - {% block title %}{{ book.name }}{% endblock %}
+    </h1>
+
+    <ul class="chapter-list">
+        {% for i in range(1, book.total_chapters + 1) %}
+        <li class="chapter-item">
+            <a href="{{ url_for('bible.chapter', chapter_id=i) }}">
+                Chapter {{ i }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .chapter-list {
+        margin: 0 auto;
+        max-width: 80vw;
+        list-style-type: none;
+        padding: 0;
+    }
+
+    .chapter-item {
+        display: inline-block;
+        margin: 1rem;
+    }
+</style>
+{% endblock %}

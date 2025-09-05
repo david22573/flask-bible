@@ -1,1 +1,43 @@
 {% extends 'base.html' %}
+
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center;">
+        KJV - {% block title %}Home{% endblock %}
+    </h1>
+    <a href="{{ url_for('bible.cube') }}">Go to the Interactive 3D Cube</a>
+    <div class="testaments">
+        {% for testament in testaments %}
+        <ul class="book-list">
+            <h2>{{ testament }} Testament</h2>
+            {% for book in testaments[testament] %}
+            <li>
+                <a
+                    href="{{ url_for('bible.book', book_id=book.id) }}">{{ book.name }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .testaments {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        overflow: auto;
+    }
+
+    .book-list {
+        list-style-type: none;
+        padding: 0;
+        text-align: center;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center;">
+        KJV - {% block title %}Chapter
+        {{ chapter.chapter_number }}{% endblock %}
+    </h1>
+
+    <div class="verses">
+        {% for verse in verses %}
+        <div class="verse">
+            <sup>{{ i }}</sup> {{ verse.text | safe }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endblock %}
+
+    {% block head %}
+    <style>
+        .verses {
+            margin: 0 auto;
+            padding-block: 1rem;
+            padding-inline: 2rem;
+            line-height: 1.6;
+            font-size: 1.2rem;
+            height: 100%;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .verse {
+            margin-bottom: 1rem;
+        }
+
+        .verse sup {
+            font-size: 0.8rem;
+            vertical-align: super;
+            margin-right: 0.3rem;
+            color: #555;
+        }
+    </style>
+    {% endblock %}

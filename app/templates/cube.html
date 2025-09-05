@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Interactive 3D Cube</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #eee;
+            font-family: monospace;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            /* Hide scrollbars */
+        }
+
+        canvas {
+            border: 2px solid #333;
+            background-color: #1a1a2a;
+            /* Deep blue space color */
+            cursor: pointer;
+            image-rendering: pixelated;
+            image-rendering: -webkit-crisp-edges;
+            width: 640px;
+            height: 480px;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <canvas
+            id="gameCanvas"
+            width="320"
+            height="240"
+        ></canvas>
+        <p>Rotation follows the mouse!</p>
+    </div>
+
+    <script>
+        // --- Canvas Setup ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        // --- Configuration & State ---
+        const palette = {
+            face1: '#e7766a', face2: '#f3c678', face3: '#86e08b',
+            outline: '#333333', shadow: 'rgba(0, 0, 0, 0.2)',
+            star: '#ffffff'
+        };
+
+        const cube = {
+            size: 40,
+            vertices: [
+                { x: -1, y: -1, z: -1 }, { x: 1, y: -1, z: -1 }, { x: 1, y: 1, z: -1 },
+                { x: -1, y: 1, z: -1 }, { x: -1, y: -1, z: 1 }, { x: 1, y: -1, z: 1 },
+                { x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }
+            ].map(v => ({ x: v.x * 40, y: v.y * 40, z: v.z * 40 })),
+            faces: [
+                { vertices: [0, 1, 2, 3], color: palette.face1 }, { vertices: [4, 5, 6, 7], color: palette.face2 },
+                { vertices: [0, 4, 7, 3], color: palette.face3 }, { vertices: [1, 5, 6, 2], color: palette.face3 },
+                { vertices: [3, 2, 6, 7], color: palette.face1 }, { vertices: [0, 1, 5, 4], color: palette.face2 }
+            ]
+        };
+
+        const scene = {
+            time: 0,
+            rotation: { x: 0, y: 0, z: 0 },
+            targetRotation: { x: 0, y: 0 } // For mouse control
+        };
+
+        // --- NEW: Starfield ---
+        let stars = [];
+        const STAR_COUNT = 400;
+        const STAR_SPEED = 1.5;
+
+        function initializeStars() {
+            for (let i = 0; i < STAR_COUNT; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width - canvas.width / 2,
+                    y: Math.random() * canvas.height - canvas.height / 2,
+                    z: Math.random() * canvas.width
+                });
+            }
+        }
+
+        // --- Mouse Interaction ---
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Calculate mouse position as a value from -1 to 1
+            const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const mouseY = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+
+            // Set target rotation based on mouse position
+            scene.targetRotation.y = mouseX * 2; // Rotate more on Y-axis
+            scene.targetRotation.x = -mouseY * 2; // Invert Y for intuitive control
+        });
+
+
+        // --- Math & Logic Functions ---
+        function rotate(point, rotation) { /* ... (same as before) ... */ }
+        function project(point, verticalBob) { /* ... (same as before) ... */ }
+
+        // Hoisted functions from previous version for brevity
+        function rotate(point, rotation) {
+            const radX = rotation.x, radY = rotation.y, radZ = rotation.z; let x = point.x, y = point.y, z = point.z;
+            let cosY = Math.cos(radY), sinY = Math.sin(radY); let tempX = x, tempZ = z;
+            x = tempX * cosY - tempZ * sinY; z = tempX * sinY + tempZ * cosY;
+            let cosX = Math.cos(radX), sinX = Math.sin(radX); let tempY = y; tempZ = z;
+            y = tempY * cosX - tempZ * sinX; z = tempY * sinX + tempZ * cosX;
+            return { x, y, z };
+        }
+        function project(point, verticalBob) {
+            return { x: point.x + canvas.width / 2, y: point.y + canvas.height / 2 + 50 + verticalBob };
+        }
+
+        // --- Drawing Functions ---
+        function drawStarfield() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            ctx.fillStyle = palette.star;
+
+            stars.forEach(star => {
+                // Move star closer to the viewer
+                star.z -= STAR_SPEED;
+
+                // If star is behind the camera, reset it to the back
+                if (star.z <= 0) {
+                    star.x = Math.random() * canvas.width - centerX;
+                    star.y = Math.random() * canvas.height - centerY;
+                    star.z = canvas.width;
+                }
+
+                // Perspective projection
+                const scale = canvas.width / star.z;
+                const px = star.x * scale + centerX;
+                const py = star.y * scale + centerY;
+                const pSize = Math.max(1, scale * 1.5);
+
+                // Draw the star if it's within the canvas bounds
+                if (px > 0 && px < canvas.width && py > 0 && py < canvas.height) {
+                    ctx.fillRect(px, py, pSize, pSize);
+                }
+            });
+        }
+
+        function drawCube(verticalBob) { /* ... (same as before, no changes needed) ... */ }
+        function drawCube(verticalBob) {
+            const transformedVertices = cube.vertices.map(v => {
+                const rotated = rotate(v, scene.rotation);
+                return { ...rotated, projected: project(rotated, verticalBob) };
+            });
+            ctx.fillStyle = palette.shadow; ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, canvas.height / 2 + 100, 45, 15, 0, 0, 2 * Math.PI); ctx.fill();
+            const facesWithDepth = cube.faces.map((face, index) => {
+                let avgZ = face.vertices.map(vIndex => transformedVertices[vIndex].z).reduce((sum, z) => sum + z, 0) / face.vertices.length;
+                return { face, avgZ, index };
+            });
+            facesWithDepth.sort((a, b) => a.avgZ - b.avgZ);
+            facesWithDepth.forEach(({ face }) => {
+                const points = face.vertices.map(vIndex => transformedVertices[vIndex].projected);
+                ctx.fillStyle = face.color; ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+                ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = palette.outline; ctx.lineWidth = 2; ctx.stroke();
+            });
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            scene.time += 0.01;
+
+            // Smoothly move current rotation towards the target rotation
+            const easing = 0.05;
+            scene.rotation.x += (scene.targetRotation.x - scene.rotation.x) * easing;
+            scene.rotation.y += (scene.targetRotation.y - scene.rotation.y) * easing;
+            scene.rotation.z = scene.time * 0.5; // Keep it slowly spinning on its own axis
+
+            const verticalBob = Math.sin(scene.time * 2) * 5;
+
+            // Clear and redraw canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawStarfield();
+            drawCube(verticalBob);
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize and start the animation
+        initializeStars();
+        animate();
+    </script>
+</body>
+
+</html>
