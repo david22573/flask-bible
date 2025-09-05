@@ -1,12 +1,20 @@
 import csv
+from datetime import datetime
 from pathlib import Path
 
-from app.db import SessionLocal, engine
+from app.db import Session, engine
 from app.models import Base, Book, Chapter, Verse
 
-BOOKS_CSV = Path("data/books.csv")
-CHAPTERS_CSV = Path("data/chapters.csv")
-VERSES_CSV = Path("data/verses.csv")
+CSV_DIR = "assets/bible/kjv/csv"
+BOOKS_CSV = Path(f"{CSV_DIR}/books.csv")
+CHAPTERS_CSV = Path(f"{CSV_DIR}/chapters.csv")
+VERSES_CSV = Path(f"{CSV_DIR}/verses.csv")
+
+
+def parse_datetime(s: str) -> datetime:
+    """Parse ISO datetime string, strip extra quotes, handle Zulu."""
+    s_clean = s.replace('"', "")
+    return datetime.fromisoformat(s_clean.replace("Z", "+00:00"))
 
 
 def init_db():
@@ -18,67 +26,77 @@ def init_db():
 def load_books():
     with BOOKS_CSV.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        books = [
+        return [
             Book(
                 id=int(row["id"]),
                 name=row["name"],
                 testament=row["testament"],
                 book_order=int(row["book_order"]),
                 total_chapters=int(row["total_chapters"]),
+                created_at=parse_datetime(row["created_at"]),
             )
             for row in reader
         ]
-    return books
 
 
 def load_chapters():
     with CHAPTERS_CSV.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        chapters = [
+        return [
             Chapter(
                 id=int(row["id"]),
                 book_id=int(row["book_id"]),
                 chapter_number=int(row["chapter_number"]),
                 total_verses=int(row["total_verses"]),
+                scraped_at=parse_datetime(row["scraped_at"]),
             )
             for row in reader
         ]
-    return chapters
 
 
-def load_verses():
+def load_verses(chapter_map: dict[int, int]):
+    """chapter_map: chapter_id -> book_id"""
     with VERSES_CSV.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        verses = [
-            Verse(
-                id=int(row["id"]),
-                book_id=int(row["book_id"]),
-                chapter_number=int(row["chapter_number"]),
-                verse_number=int(row["verse_number"]),
-                text=row["text"],
+        verses = []
+        for row in reader:
+            chapter_id = int(row["chapter_id"])
+            verses.append(
+                Verse(
+                    id=int(row["id"]),
+                    chapter_id=chapter_id,
+                    book_id=chapter_map[chapter_id],  # denormalized
+                    verse_number=int(row["verse_number"]),
+                    text=row["text"],
+                    created_at=parse_datetime(row["created_at"]),
+                )
             )
-            for row in reader
-        ]
-    return verses
+        return verses
 
 
 def migrate():
     """Run full migration."""
     init_db()
 
-    with SessionLocal() as db:
+    with Session() as db:
+        # Insert books
         print("Inserting books...")
         db.bulk_save_objects(load_books())
         db.commit()
 
+        # Insert chapters
         print("Inserting chapters...")
-        db.bulk_save_objects(load_chapters())
+        chapters = load_chapters()
+        db.bulk_save_objects(chapters)
         db.commit()
 
+        # Build chapter_id -> book_id map for denormalized verses
+        chapter_map = {c.id: c.book_id for c in chapters}
+
+        # Insert verses in batches
         print("Inserting verses...")
-        # Insert in batches if CSV is large
         BATCH_SIZE = 1000
-        verses = load_verses()
+        verses = load_verses(chapter_map)
         for i in range(0, len(verses), BATCH_SIZE):
             db.bulk_save_objects(verses[i : i + BATCH_SIZE])
             db.commit()

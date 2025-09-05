@@ -12,7 +12,6 @@ class Book(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     testament: Mapped[str] = mapped_column(String(20), nullable=False)
-
     book_order: Mapped[int] = mapped_column(Integer, nullable=False)
     total_chapters: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(
@@ -40,19 +39,25 @@ class Chapter(Base):
     scraped_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     book: Mapped["Book"] = relationship(back_populates="chapters")
+    verses: Mapped[list["Verse"]] = relationship(
+        back_populates="chapter", cascade="all, delete-orphan"
+    )
 
 
 class Verse(Base):
     __tablename__ = "verses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), nullable=False)
-    chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    book_id: Mapped[int] = mapped_column(
+        ForeignKey("books.id"), nullable=False
+    )  # denormalized
+    chapter_id: Mapped[int] = mapped_column(
+        ForeignKey("chapters.id"), nullable=False
+    )  # proper FK
     verse_number: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
     scraped_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     book: Mapped["Book"] = relationship(back_populates="verses")
+    chapter: Mapped["Chapter"] = relationship(back_populates="verses")
