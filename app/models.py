@@ -6,6 +6,15 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username = mapped_column(String(50), unique=True, nullable=False)
+    email = mapped_column(String(100), unique=True, nullable=True)
+    password = mapped_column(String(255), nullable=False)
+    created_at = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at = mapped_column(DateTime(timezone=True), onupdate=func.now())
+
+
 class Book(Base):
     __tablename__ = "books"
 
