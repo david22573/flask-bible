@@ -1,0 +1,28 @@
+{% from 'components/verses.html' import verse_list %}
+
+<div class="chapter-inline">
+    <div class="chapter-header">
+        <h1 class="chapter-title">
+            {{ chapter.book.name }} {{ chapter.chapter_number }}
+        </h1>
+        <div class="chapter-meta">
+            King James Version • {{ verses|length }} verses
+        </div>
+    </div>
+
+    <div class="verses">
+        {% for verse in verses %}
+        <div class="verse">
+            <sup class="verse-number">{{ verse.verse_number }}</sup>
+            <span class="verse-text">{{ verse.text }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <a
+        class="full-link"
+        href="{{ url_for('bible.chapter_full', book_id=book_id, chapter_id=chapter.chapter_number) }}"
+    >
+        Open Fullscreen →
+    </a>
+</div>

@@ -14,7 +14,7 @@
             {% for book in testaments[testament] %}
             <li>
                 <a
-                    href="{{ url_for('bible.book', book_id=book.id) }}">{{ book.name }}</a>
+                    href="{{ url_for('bible.book_view', book_id=book.id) }}">{{ book.name }}</a>
             </li>
             {% endfor %}
         </ul>

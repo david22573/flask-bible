@@ -28,8 +28,13 @@
     {% block head %}{% endblock %}
 </head>
 
-<body style="height: 100dvh; overflow: hidden;">
+<body>
+    <script
+        src="//unpkg.com/alpinejs"
+        defer
+    ></script>
     {% block content %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
     <script
         src="{{ url_for('static', filename='js/index.js') }}"
         type="module"

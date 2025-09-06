@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Bible Reader - Enhanced UI</title>
+    <style>
+        /* Enhanced CSS with modern design patterns */
+    </style>
+</head>
+
+<body>
+    <div
+        class="reader"
+        x-data="bibleReader()"
+    >
+        <!-- Mobile Menu Toggle -->
+        <button
+            class="menu-toggle"
+            @click="sidebarOpen = !sidebarOpen"
+            :class="{ active: sidebarOpen }"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Enhanced Sidebar -->
+        <aside
+            class="sidebar"
+            :class="{ active: sidebarOpen }"
+        >
+            <div class="sidebar-inner">
+                <div class="sidebar-header">
+                    <a
+                        href="#"
+                        class="back-button"
+                    >
+                        <span class="back-arrow">←</span>
+                        <span>Back to Books</span>
+                    </a>
+                    <h2 class="sidebar-title">Genesis</h2>
+                    <div
+                        class="sidebar-subtitle"
+                        x-text="'Chapter ' + currentChapter + ' of 50'"
+                    ></div>
+                </div>
+
+                <ul class="chapter-list">
+                    <template
+                        x-for="chapter in 50"
+                        :key="chapter"
+                    >
+                        <li class="chapter-item">
+                            <a
+                                href="#"
+                                class="chapter-link"
+                                :class="{ active: currentChapter === chapter }"
+                                @click.prevent="selectChapter(chapter)"
+                            >
+                                <span>
+                                    <span
+                                        class="chapter-number"
+                                        x-text="'Ch. ' + chapter"
+                                    ></span>
+                                    Chapter <span x-text="chapter"></span>
+                                </span>
+                                <span
+                                    class="chapter-verses-count"
+                                    x-text="getVerseCount(chapter) + ' verses'"
+                                ></span>
+                            </a>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Reading Pane -->
+        <main class="chapter-pane">
+            <!-- Reading Controls -->
+            <div class="reading-controls">
+                <div class="controls-left">
+                    <button
+                        class="control-btn tooltip"
+                        data-tooltip="Toggle Sidebar"
+                        @click="sidebarOpen = !sidebarOpen"
+                    >
+                        📚
+                    </button>
+                </div>
+
+                <div class="controls-right">
+                    <div class="font-controls">
+                        <button
+                            class="font-btn"
+                            @click="decreaseFontSize()"
+                        >A-</button>
+                        <span
+                            class="font-size-indicator"
+                            x-text="fontSize + 'px'"
+                        ></span>
+                        <button
+                            class="font-btn"
+                            @click="increaseFontSize()"
+                        >A+</button>
+                    </div>
+
+                    <button
+                        class="control-btn tooltip"
+                        data-tooltip="Reading Mode"
+                        @click="toggleReadingMode()"
+                    >
+                        📖
+                    </button>
+
+                    <button
+                        class="control-btn tooltip"
+                        data-tooltip="Bookmark"
+                        @click="toggleBookmark()"
+                    >
+                        🔖
+                    </button>
+
+                    <button
+                        class="control-btn theme-toggle tooltip"
+                        data-tooltip="Toggle Theme"
+                        @click="toggleTheme()"
+                    >
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chapter Content -->
+            <div class="chapter-content-wrapper">
+                <div
+                    class="chapter-content"
+                    :style="{ fontSize: fontSize + 'px' }"
+                >
+                    <div class="chapter-header">
+                        <h1 class="chapter-title">Genesis <span
+                                x-text="currentChapter"
+                            ></span></h1>
+                        <div class="chapter-meta">King James Version • <span
+                                x-text="getVerseCount(currentChapter)"
+                            ></span> verses</div>
+                    </div>
+
+                    <div
+                        class="verses"
+                        x-show="!loading"
+                    >
+                        <template
+                            x-for="(verse, index) in currentVerses"
+                            :key="index"
+                        >
+                            <div
+                                class="verse"
+                                :class="{ highlighted: verse.highlighted }"
+                            >
+                                <sup
+                                    class="verse-number"
+                                    x-text="verse.number"
+                                ></sup>
+                                <span
+                                    class="verse-text"
+                                    x-text="verse.text"
+                                ></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div x-show="loading">
+                        <div
+                            class="loading-skeleton"
+                            style="width: 100%;"
+                        ></div>
+                        <div
+                            class="loading-skeleton"
+                            style="width: 95%;"
+                        ></div>
+                        <div
+                            class="loading-skeleton"
+                            style="width: 98%;"
+                        ></div>
+                        <div
+                            class="loading-skeleton"
+                            style="width: 92%;"
+                        ></div>
+                        <div
+                            class="loading-skeleton"
+                            style="width: 96%;"
+                        ></div>
+                    </div>
+
+                    <!-- Chapter Navigation -->
+                    <div
+                        class="chapter-navigation"
+                        x-show="!loading"
+                    >
+                        <a
+                            href="#"
+                            class="nav-btn"
+                            :class="{ disabled: currentChapter === 1 }"
+                            @click.prevent="previousChapter()"
+                        >
+                            <span>←</span>
+                            <span>Previous Chapter</span>
+                        </a>
+
+                        <a
+                            href="#"
+                            class="nav-btn"
+                            :class="{ disabled: currentChapter === 50 }"
+                            @click.prevent="nextChapter()"
+                        >
+                            <span>Next Chapter</span>
+                            <span>→</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Alpine.js for interactivity -->
+    <script>
+        function bibleReader() {
+            return {
+                currentChapter: 1,
+                currentVerses: [],
+                loading: false,
+                sidebarOpen: false,
+                fontSize: 20,
+                theme: localStorage.getItem('theme') || 'dark',
+
+                init() {
+                    // Set initial theme
+                    document.documentElement.setAttribute('data-theme', this.theme);
+
+                    // Load initial chapter
+                    this.loadChapter(1);
+
+                    // Close sidebar on mobile when chapter selected
+                    if (window.innerWidth < 768) {
+                        this.$watch('currentChapter', () => {
+                            this.sidebarOpen = false;
+                        });
+                    }
+                },
+
+                selectChapter(chapter) {
+                    this.currentChapter = chapter;
+                    this.loadChapter(chapter);
+                },
+
+                loadChapter(chapter) {
+                    this.loading = true;
+
+                    // Simulate loading (replace with actual API call)
+                    setTimeout(() => {
+                        this.currentVerses = this.generateSampleVerses(chapter);
+                        this.loading = false;
+
+                        // Scroll to top
+                        document.querySelector('.chapter-content-wrapper').scrollTop = 0;
+                    }, 500);
+                },
+
+                generateSampleVerses(chapter) {
+                    const sampleTexts = [
+                        "In the beginning God created the heaven and the earth.",
+                        "And the earth was without form, and void; and darkness was upon the face of the deep.",
+                        "And the Spirit of God moved upon the face of the waters.",
+                        "And God said, Let there be light: and there was light.",
+                        "And God saw the light, that it was good: and God divided the light from the darkness.",
+                        "And God called the light Day, and the darkness he called Night.",
+                        "And the evening and the morning were the first day.",
+                        "And God said, Let there be a firmament in the midst of the waters.",
+                        "And let it divide the waters from the waters.",
+                        "And God made the firmament, and divided the waters which were under the firmament."
+                    ];
+
+                    const verseCount = 20 + Math.floor(Math.random() * 15);
+                    const verses = [];
+
+                    for (let i = 1; i <= verseCount; i++) {
+                        verses.push({
+                            number: i,
+                            text: sampleTexts[i % sampleTexts.length],
+                            highlighted: false
+                        });
+                    }
+
+                    return verses;
+                },
+
+                getVerseCount(chapter) {
+                    // Sample verse counts (replace with actual data)
+                    return 20 + Math.floor(Math.random() * 15);
+                },
+
+                previousChapter() {
+                    if (this.currentChapter > 1) {
+                        this.selectChapter(this.currentChapter - 1);
+                    }
+                },
+
+                nextChapter() {
+                    if (this.currentChapter < 50) {
+                        this.selectChapter(this.currentChapter + 1);
+                    }
+                },
+
+                increaseFontSize() {
+                    if (this.fontSize < 32) {
+                        this.fontSize += 2;
+                    }
+                },
+
+                decreaseFontSize() {
+                    if (this.fontSize > 14) {
+                        this.fontSize -= 2;
+                    }
+                },
+
+                toggleTheme() {
+                    this.theme = this.theme === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', this.theme);
+                    localStorage.setItem('theme', this.theme);
+                },
+
+                toggleReadingMode() {
+                    // Implement reading mode (focus mode, etc.)
+                    console.log('Toggle reading mode');
+                },
+
+                toggleBookmark() {
+                    // Implement bookmark functionality
+                    console.log('Toggle bookmark');
+                }
+            };
+        }
+    </script>
+</body>
+
+</html>

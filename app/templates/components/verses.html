@@ -1,0 +1,11 @@
+<!-- components/verses.html (macro) -->
+{% macro verse_list(verses) %}
+<div class="verses">
+    {% for verse in verses %}
+    <div class="verse">
+        <sup class="verse-number">{{ verse.verse_number }}</sup>
+        <span class="verse-text">{{ verse.text }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endmacro %}

@@ -1,36 +1,199 @@
 {% extends 'base.html' %}
 
-
-{% block content %}
-<div class="container">
-    <h1 style="text-align: center;">
-        KJV - {% block title %}{{ book.name }}{% endblock %}
-    </h1>
-
-    <ul class="chapter-list">
-        {% for i in range(1, book.total_chapters + 1) %}
-        <li class="chapter-item">
-            <a href="{{ url_for('bible.chapter', chapter_id=i) }}">
-                Chapter {{ i }}
-            </a>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
+{% block head %}
+<title x-text="documentTitle">{{ book.name }}</title>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='styles.css') }}"
+>
 {% endblock %}
 
-{% block head %}
-<style>
-    .chapter-list {
-        margin: 0 auto;
-        max-width: 80vw;
-        list-style-type: none;
-        padding: 0;
-    }
+{% block content %}
+<div
+    class="reader"
+    x-data="bibleReader()"
+    x-init="init()"
+    data-book='{{ book | tojson | safe }}'
+    data-initial-chapter='{{ initial_chapter | tojson | safe }}'
+    data-chapter-api-template="/api/book/{{ book.id }}/chapter/CHAPTER_NUMBER"
+>
+    <!-- Sidebar -->
+    <button
+        class="menu-toggle"
+        @click="sidebarOpen = !sidebarOpen"
+        :class="{ active: sidebarOpen }"
+    >
+        <span></span><span></span><span></span>
+    </button>
 
-    .chapter-item {
-        display: inline-block;
-        margin: 1rem;
+    <aside
+        class="sidebar"
+        :class="{ active: sidebarOpen }"
+    >
+        <div class="sidebar-inner">
+            <div class="sidebar-header">
+                <a
+                    href="{{ url_for('bible.home') }}"
+                    class="back-button"
+                >
+                    <span class="back-arrow">←</span> Back to Books
+                </a>
+                <h2 class="sidebar-title">{{ book.name }}</h2>
+                <div
+                    class="sidebar-subtitle"
+                    x-text="`Chapter ${currentChapter} of ${book.total_chapters}`"
+                ></div>
+            </div>
+
+            <ul class="chapter-list">
+                <template
+                    x-for="i in book.total_chapters"
+                    :key="i"
+                >
+                    <li class="chapter-item">
+                        <a
+                            href="#"
+                            class="chapter-link"
+                            :class="{ 'active': currentChapter === i }"
+                            @click.prevent="selectChapter(i)"
+                        >
+                            <span>Ch. {{ i }}</span>
+                        </a>
+                    </li>
+                </template>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Reading Pane -->
+    <main class="chapter-pane">
+        <div class="reading-controls">
+            <div class="controls-left">
+                <button
+                    class="control-btn tooltip"
+                    data-tooltip="Toggle Sidebar"
+                    @click="sidebarOpen = !sidebarOpen"
+                >
+                    ☰
+                </button>
+            </div>
+            <div class="controls-right">
+                <div class="font-controls">
+                    <button @click="decreaseFontSize()">A-</button>
+                    <span x-text="fontSize + 'px'"></span>
+                    <button @click="increaseFontSize()">A+</button>
+                </div>
+                <button @click="toggleTheme()">🌓</button>
+            </div>
+        </div>
+
+        <div
+            class="chapter-content-wrapper"
+            x-ref="contentWrapper"
+        >
+            <template x-if="loading">
+                <div class="loading-state">Loading...</div>
+            </template>
+            <div
+                x-show="!loading"
+                class="chapter-content"
+                :style="`font-size: ${fontSize}px`"
+            >
+                <template
+                    x-for="verse in currentVerses"
+                    :key="verse.id"
+                >
+                    <p x-text="verse.text"></p>
+                </template>
+
+                <div class="chapter-navigation">
+                    <button
+                        @click="previousChapter()"
+                        :disabled="currentChapter === 1"
+                    >← Previous</button>
+                    <button
+                        @click="nextChapter()"
+                        :disabled="currentChapter === book.total_chapters"
+                    >Next →</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    function bibleReader() {
+        return {
+            book: {},
+            currentChapter: 1,
+            currentVerses: [],
+            sidebarOpen: false,
+            loading: true,
+            fontSize: parseInt(localStorage.getItem('fontSize')) || 20,
+            theme: localStorage.getItem('theme') || 'dark',
+            chapterApiTemplate: '',
+
+            init() {
+                const root = this.$root;
+                this.book = JSON.parse(root.dataset.book);
+                const initialChapter = JSON.parse(root.dataset.initialChapter);
+                this.chapterApiTemplate = root.dataset.chapterApiTemplate;
+
+                if (initialChapter) {
+                    this.currentChapter = initialChapter.chapter_number;
+                    this.currentVerses = initialChapter.verses;
+                }
+                document.documentElement.setAttribute('data-theme', this.theme);
+                this.documentTitle = `${this.book.name} - Chapter ${this.currentChapter}`;
+            },
+
+            selectChapter(chapterNumber) {
+                this.currentChapter = chapterNumber;
+                this.loadChapter(chapterNumber);
+            },
+
+            async loadChapter(chapterNumber) {
+                this.loading = true;
+                try {
+                    const url = this.chapterApiTemplate.replace('CHAPTER_NUMBER', chapterNumber);
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('Chapter not found');
+                    const data = await res.json();
+                    this.currentVerses = data.verses;
+                } catch (err) {
+                    console.error(err);
+                    this.currentVerses = [{ id: 0, text: 'Error loading chapter.' }];
+                } finally {
+                    this.loading = false;
+                    this.documentTitle = `${this.book.name} - Chapter ${chapterNumber}`;
+                    history.pushState({ chapter: chapterNumber }, '', `/book/${this.book.id}/chapter/${chapterNumber}`);
+                }
+            },
+
+            previousChapter() {
+                if (this.currentChapter > 1) this.selectChapter(this.currentChapter - 1);
+            },
+
+            nextChapter() {
+                if (this.currentChapter < this.book.total_chapters) this.selectChapter(this.currentChapter + 1);
+            },
+
+            increaseFontSize() {
+                if (this.fontSize < 32) this.fontSize += 2;
+                localStorage.setItem('fontSize', this.fontSize);
+            },
+
+            decreaseFontSize() {
+                if (this.fontSize > 14) this.fontSize -= 2;
+                localStorage.setItem('fontSize', this.fontSize);
+            },
+
+            toggleTheme() {
+                this.theme = this.theme === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', this.theme);
+                localStorage.setItem('theme', this.theme);
+            }
+        };
     }
-</style>
+</script>
 {% endblock %}
