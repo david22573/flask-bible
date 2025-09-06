@@ -36,6 +36,9 @@ class Book(Base):
     verses: Mapped[list["Verse"]] = relationship(
         back_populates="book", cascade="all, delete-orphan"
     )
+    slug: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
 
 
 class Chapter(Base):

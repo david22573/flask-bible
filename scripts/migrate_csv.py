@@ -34,6 +34,7 @@ def load_books():
                 book_order=int(row["book_order"]),
                 total_chapters=int(row["total_chapters"]),
                 created_at=parse_datetime(row["created_at"]),
+                slug=row["name"].lower().replace(" ", "-"),
             )
             for row in reader
         ]

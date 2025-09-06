@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, abort, jsonify, render_template
 
 from app.db import Session
 from app.models import Book, Chapter
@@ -6,29 +6,15 @@ from app.models import Book, Chapter
 bp = Blueprint("bible", __name__)
 
 
-def book_to_dict(book):
-    return {
-        "id": book.id,
-        "name": book.name,
-        "testament": book.testament,
-        "total_chapters": book.total_chapters,
-    }
+def to_dict(obj):
+    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
-def chapter_to_dict(chapter, verses):
-    return {
-        "id": chapter.id,
-        "chapter_number": chapter.chapter_number,
-        "verses": verses,
-    }
-
-
-def verse_to_dict(verse):
-    return {
-        "id": verse.id,
-        "verse_number": verse.verse_number,
-        "text": verse.text,
-    }
+def get_book_by_slug(session, slug: str):
+    book = session.query(Book).filter_by(slug=slug).first()
+    if not book:
+        abort(404, description="Book not found")
+    return book
 
 
 @bp.route("/")
@@ -37,29 +23,45 @@ def home():
         books = session.query(Book).order_by(Book.id).all()
     testaments = {"Old": [], "New": []}
     for book in books:
-        testaments[book.testament].append(book_to_dict(book))
+        testaments[book.testament].append(to_dict(book))
     return render_template("index.html", testaments=testaments)
 
 
-@bp.route("/book/<int:book_id>")
-def book_view(book_id):
-    """Load a book page with the first chapter by default"""
+@bp.route("/book/<string:book_slug>/")
+def book_view(book_slug):
     with Session() as session:
-        book_obj = session.get(Book, book_id)
-        if not book_obj:
-            return "Book not found", 404
-
+        book_obj = get_book_by_slug(session, book_slug)
         first_chapter = (
-            session.query(Chapter).filter_by(book_id=book_id, chapter_number=1).first()
+            session.query(Chapter)
+            .filter_by(book_id=book_obj.id, chapter_number=1)
+            .first()
         )
-
-        verses = [verse_to_dict(v) for v in first_chapter.verses]
+        verses = [to_dict(v) for v in first_chapter.verses] if first_chapter else []
     return render_template(
         "book.html",
-        book=book_to_dict(book_obj),
+        book=to_dict(book_obj),
         initial_chapter=(
-            chapter_to_dict(first_chapter, verses) if first_chapter else None
+            {**to_dict(first_chapter), "verses": verses} if first_chapter else None
         ),
+    )
+
+
+@bp.route("/book/<string:book_slug>/chapter/<int:chapter_number>")
+def chapter_view(book_slug, chapter_number):
+    with Session() as session:
+        book_obj = get_book_by_slug(session, book_slug)
+        chapter = (
+            session.query(Chapter)
+            .filter_by(book_id=book_obj.id, chapter_number=chapter_number)
+            .first()
+        )
+        if not chapter:
+            abort(404, description="Chapter not found")
+        verses = [to_dict(v) for v in chapter.verses]
+    return render_template(
+        "book.html",
+        book=to_dict(book_obj),
+        initial_chapter={**to_dict(chapter), "verses": verses},
     )
 
 
@@ -73,8 +75,8 @@ def chapter_api(book_id, chapter_number):
         )
         if not chapter:
             return jsonify({"error": "Chapter not found"}), 404
-        verses = [verse_to_dict(v) for v in chapter.verses]
-        return jsonify(chapter_to_dict(chapter, verses))
+        verses = [to_dict(v) for v in chapter.verses]
+        return jsonify({**to_dict(chapter), "verses": verses})
 
 
 @bp.route("/cube")
